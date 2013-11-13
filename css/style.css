@@ -1,0 +1,8 @@
+html, body {margin: 0;padding: 0;overflow: hidden;font-size: 100%;}
+.ui-widget-content {border:0px;}
+.ui-tabs-nav li {position: relative;}
+.ui-tabs-selected a span {padding-right: 10px;}
+.ui-tabs-close {display: none;position: absolute;top: 3px;right: 0px;z-index: 800;width: 16px;height: 14px;font-size: 10px; font-style: normal;cursor: pointer;}
+.ui-tabs-selected .ui-tabs-close {display: block;}
+.dv{margin: 0 auto;}
+.dv p {display:block;padding-bottom:60px;}

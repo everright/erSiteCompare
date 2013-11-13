@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html class="ie ie6 no-js" lang="en"> <![endif]-->
+<!--[if IE 7 ]>    <html class="ie ie7 no-js" lang="en"> <![endif]-->
+<!--[if IE 8 ]>    <html class="ie ie8 no-js" lang="en"> <![endif]-->
+<!--[if IE 9 ]>    <html class="ie ie9 no-js" lang="en"> <![endif]-->
+<!--[if gt IE 9]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+<title>Website Compare Reports</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" type="text/css" media="screen" href="css/jquery-ui.css" />
+<link rel="stylesheet" type="text/css" media="screen" href="css/ui.jqgrid.css" />
+<link rel="stylesheet" type="text/css" media="screen" href="js/shadowbox/shadowbox.css">
+<link rel="stylesheet" type="text/css" media="screen" href="css/style.css" />
+<script src="js/jquery.min.js" type="text/javascript"></script>
+<script src="js/jquery-ui.min.js" type="text/javascript"></script>
+<script src="js/i18n/grid.locale-en.js" type="text/javascript"></script>
+<script type="text/javascript">$.jgrid.no_legacy_api = true;$.jgrid.useJSON = true;</script>
+<script src="js/jquery.jqGrid.min.js" type="text/javascript"></script>
+<script src="js/jquery.doubleviewer.js" type="text/javascript"></script>
+<script src="js/shadowbox/shadowbox.js" type="text/javascript"></script>
+<script type="text/javascript">
+(function($){
+  $(document).ready(function(){
+    var jqw = Math.round(($(window).width() - 340) / 4);
+    var jqh = $(window).height() - 160;
+    $('#reports').jqGrid({
+   	  url:'result.json',
+	  datatype: "json",
+   	  colNames:['ID', 'Site1 Link', 'Site1 Target', 'Site2 Link', 'Site2 Target', 'Disparity', 'View', 'Onlie Compare'],
+   	  colModel:[
+   		{name:'id',index:'id',width:40,sorttype:"int"},
+   		{name:'site1link',index:'site1link',width:jqw},
+   		{name:'site1target',index:'site1target',width:jqw},
+   		{name:'site2link',index:'site2link',width:jqw},
+   		{name:'site2target',index:'site2target',width:jqw},
+   		{name:'disparity',index:'disparity', width:80, align:"right",sorttype:'float'},
+   		{name:'view',index:'view',width:50,align:"center",sortable:false},
+   		{name:'onliecompare',index:'onliecompare',width:80,align:"center",sortable:false}
+   	  ],
+   	  rowNum:100,
+   	  rowList:[50,100,150,200],
+   	  pager: $('#pager'),
+   	  sortname: 'id',
+      height: jqh + 'px',
+      viewrecords: true,
+      sortorder: 'asc',
+      loadonce: true,
+      caption: 'Website Compare Reports'
+    });
+    //$("#reports").jqGrid('navGrid','#pager',{edit:false,add:false,del:false});
+	var w = $(window).width() - 200;
+	var h = $(window).height() - 100;
+    var $tabs =$('#tabs').tabs({
+      add: function(e, ui) {
+        // append close
+        $(ui.tab).parents('li:first').append('<span class="ui-tabs-close ui-icon ui-icon-close" title="Close Tab"></span>').find('span.ui-tabs-close').show().click(function() {
+          $tabs.tabs('remove', $('li', $tabs).index($(this).parents('li:first')[0]));
+        });
+        // select just added tab
+        $tabs.tabs('select', '#' + ui.panel.id);
+      }
+    });
+
+	$('#reports').delegate('a.compare', 'click', function(){
+      var key = $(this).parent().parent().attr('id');
+      var img1 = $(this).attr('image1');
+      var img2 = $(this).attr('image2');
+      var st = "#t" + key;
+      var dv = "#dv" + key;
+      if($(st).html() != null ) {
+        $tabs.tabs('select', st);
+      }
+      else {
+        $tabs.tabs('add', st, key);
+        $(st, $tabs).append('<div id="dv' + key + '" class="dv"></div>');
+        var config = {width:w,height:h,img_before:img1,img_after:img2};
+		$(dv).doubleviewer(config);
+      }
+    });
+
+    Shadowbox.init({overlayOpacity: 0.8,handleOversize: 'drag',modal: true});
+  });
+})(jQuery);
+</script>
+</head>
+<body>
+<div id="tabs">
+  <ul>
+    <li><a href="#tabs-1">Site Compre Reports</a></li>
+  </ul>
+  <div id="tabs-1">
+    <table id="reports"></table>
+    <div id="pager"></div>
+  </div>
+</div>
+</body>
+</html>
