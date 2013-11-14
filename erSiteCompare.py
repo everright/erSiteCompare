@@ -14,7 +14,7 @@ Version: 1.0 Beta
 
 import os, sys, time, urllib, logging, errno, json, zipfile, shutil
 from selenium import webdriver
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, TimeoutException
 from hashlib import md5
 from PIL import Image, ImageChops
 import math, operator
@@ -69,11 +69,15 @@ class imageCompare(object):
 		return self._rms
 
 	def image_similarity_image(self):
-		diff = ImageChops.difference(self._image1, self._image2)
-		diff = diff.convert('L')
-		diff = diff.point(self._pointTable)
-		image = diff.convert('RGB')
-		image.paste(self._image2, mask=diff)
+		image = None
+		try:
+			diff = ImageChops.difference(self._image1, self._image2)
+			diff = diff.convert('L')
+			diff = diff.point(self._pointTable)
+			image = diff.convert('RGB')
+			image.paste(self._image2, mask=diff)
+		except Exception, e:
+			logging.error(e)
 		return image
 
 	def image_save(self, target):
@@ -82,8 +86,11 @@ class imageCompare(object):
 		dirname = os.path.dirname(target)
 		self.mkdir(dirname)
 		image = self.image_similarity_image()
-		image.save(target)
-		return True
+		if image:
+			image.save(target)
+			return True
+		else:
+			return False
 
 	def mkdir(self, path):
 		if ('' == path or os.path.isdir(path)):
@@ -290,13 +297,13 @@ class siteCompare(object):
 				self._scrapeQueue.append(link)
 				logging.info('Append new link [%s].' % link)
 
-	def prepareLinks(self, tagName):
-		key = 'href'
-		if ('frame' == tagName or 'iframe' == tagName):
-			key = 'src'
-		elements = self.driver.find_elements_by_tag_name(tagName)
+	def prepareLinks(self):
+		elements = self.driver.find_elements_by_xpath("//a|//area|//iframe|//frame")
 		if elements:
 			for el in elements:
+				key = 'href'
+				if ('frame' == el.tag_name or 'iframe' == el.tag_name):
+					key = 'src'
 				link = el.get_attribute(key)
 				if not link:
 					continue
@@ -307,11 +314,12 @@ class siteCompare(object):
 
 	def getLinks(self, url):
 		print "Processing %s" % (url)
-		self.driver.get(url)
-		self.prepareLinks('a')
-		#self.prepareLinks('area')
-		#self.prepareLinks('frame')
-		#self.prepareLinks('iframe')
+		try:
+			self.driver.get(url)
+			self.prepareLinks()
+		except TimeoutException, e:
+			print 'Link [%s] connection time out.' % url
+			logging.error('Link [%s] connection time out.', url)
 
 	def windowOpen(self):
 		elements = self.driver.find_elements_by_xpath("//a[contains(@href,'window.open')]")
@@ -431,7 +439,19 @@ class siteCompare(object):
 		print 'Download file %s' % url
 		urllib.urlretrieve(url, filename)
 
+	def clearTemplate(self):
+		index = os.path.join(self._outputPath, 'index.html')
+		if os.path.exists(index):
+			os.remove(index)
+		js = os.path.join(self._outputPath, 'js')
+		if os.path.exists(js):
+			shutil.rmtree(js)
+		css = os.path.join(self._outputPath, 'css')
+		if os.path.exists(css):
+			shutil.rmtree(css)
+
 	def reportTemplate(self):
+		self.clearTemplate()
 		templateFile = None
 		if os.path.isfile(self._template) and os.path.exists(self._template):
 			templateFile = self._template
