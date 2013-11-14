@@ -417,8 +417,8 @@ class siteCompare(object):
 			shutil.rmtree(tempPath)
 
 	def run(self):
-		#self.capture()
-		#self.compare()
+		self.capture()
+		self.compare()
 		self.reportTemplate()
 
 def main(args=None):
