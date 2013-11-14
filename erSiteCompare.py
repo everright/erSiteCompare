@@ -111,12 +111,14 @@ class siteCompare(object):
 	_site2 = None
 	_site1Capture = 'site1'
 	_site2Capture = 'site2'
+	_site1Profile = None
+	_site2Profile = None
 	_siteCapture = 'site'
 	_capturePath = None
 	_baseDomain = None
 	driver = None
 
-	def __init__(self, site1 = None, site2 = None, output = None, template = None, logLevel = logging.DEBUG, profile = None):
+	def __init__(self, site1 = None, site2 = None, output = None, template = None, logLevel = logging.DEBUG, profile = None, profile1 = None, profile2 = None):
 		if output:
 			self._outputPath = output
 			self.mkdir(output)
@@ -149,23 +151,21 @@ class siteCompare(object):
 		self._site1 = site1
 		self._site2 = site2
 
-		try:
-			if profile is not None:
-				fp = webdriver.FirefoxProfile(profile)
-				self.driver = webdriver.Firefox(fp)
-			else:
-				self.driver = webdriver.Firefox()
-			self.driver.implicitly_wait(30)
-			self.driver.maximize_window()
-		except WebDriverException, e:
-			raise e
+		if profile is not None:
+			self._site1Profile = profile
+			self._site2Profile = profile
+		if profile1 is not None:
+			self._site1Profile = profile1
+		if profile2 is not None:
+			self._site2Profile = profile2
 
 		logging.info('Sites compare start.')
 
 	def __del__(self):
+		logging.info('Sites compare end.')
 		if (self.driver):
 			self.driver.quit()
-			logging.info('Sites compare end.')
+			self.drvier = None
 
 	def clear(self):
 		self._scrapeQueue = []
@@ -224,6 +224,17 @@ class siteCompare(object):
 		self.saveFile(data, fp)
 
 	def startSite1(self):
+		try:
+			if self._site1Profile is not None:
+				fp = webdriver.FirefoxProfile(self._site1Profile)
+				self.driver = webdriver.Firefox(fp)
+			else:
+				self.driver = webdriver.Firefox()
+			self.driver.implicitly_wait(30)
+			self.driver.maximize_window()
+		except WebDriverException, e:
+			raise e
+
 		self.baseDomain(self._site1)
 		self._capturePath = os.path.join(self._outputPath, self._site1Capture)
 		print 'Site1 [%s] start, capture save path: %s' % (self._site1, self._capturePath)
@@ -232,7 +243,22 @@ class siteCompare(object):
 		self.scrape()
 		self.saveSite1CaptureResult()
 
+		if (self.driver):
+			self.driver.quit()
+			self.driver = None
+
 	def startSite2(self):
+		try:
+			if self._site2Profile is not None:
+				fp = webdriver.FirefoxProfile(self._site2Profile)
+				self.driver = webdriver.Firefox(fp)
+			else:
+				self.driver = webdriver.Firefox()
+			self.driver.implicitly_wait(30)
+			self.driver.maximize_window()
+		except WebDriverException, e:
+			raise e
+
 		self.baseDomain(self._site2)
 		self._capturePath = os.path.join(self._outputPath, self._site2Capture)
 		print 'Site2 [%s] start, capture save path: %s' % (self._site2, self._capturePath)
@@ -240,6 +266,10 @@ class siteCompare(object):
 		self.appendLinks(self._site2)
 		self.scrape()
 		self.saveSite2CaptureResult()
+
+		if (self.driver):
+			self.driver.quit()
+			self.driver = None
 
 	def mkdir(self, path):
 		if ('' == path or os.path.isdir(path)):
@@ -332,15 +362,17 @@ class siteCompare(object):
 		f1 = os.path.join(self._outputPath, fn1)
 		fn2 = os.path.join(self._site2Capture, filename)
 		f2 = os.path.join(self._outputPath, fn2)
-		c = imageCompare(image1 = f1, image2 = f2)
-		disparity = c.image_similarity()
-		fn = os.path.join(self._siteCapture, filename)
-		fp = os.path.join(self._outputPath, fn)
-		view = ''
-		if c.image_save(fp):
-			view = '<a href="%s" rel="shadowbox[images]" title="%s">view</a>' % (fn, fn)
 
-		onlieCompare = '<a href="#" class="compare" image1="%s" image2="%s">compare</a>' % (fn1, fn2)
+		disparity = view = onlieCompare = ''
+		if (os.path.exists(f1) and os.path.exists(f2)):
+			c = imageCompare(image1 = f1, image2 = f2)
+			disparity = c.image_similarity()
+			fn = os.path.join(self._siteCapture, filename)
+			fp = os.path.join(self._outputPath, fn)
+			if c.image_save(fp):
+				view = '<a href="%s" rel="shadowbox[images]" title="%s">view</a>' % (fn, fn)
+
+			onlieCompare = '<a href="#" class="compare" image1="%s" image2="%s">compare</a>' % (fn1, fn2)
 		self._compareImages[filename] = (disparity, view, onlieCompare)
 		return self._compareImages[filename]
 
@@ -431,11 +463,15 @@ def main(args=None):
 		help='save site screenshots and results of sites compare')
 	parser.add_option('-p', '--profile', metavar="PROFILE", action='store', dest='profile',
 		help='start firefox with special profile')
+	parser.add_option('', '--profile1', metavar="PROFILE1", action='store', dest='profile1',
+		help='start firefox with special profile for site1')
+	parser.add_option('', '--profile2', metavar="PROFILE2", action='store', dest='profile2',
+		help='start firefox with special profile for site2')
 	parser.add_option('-t', '--template', metavar="URL", action='store', dest='template',
 		help='compare report html template file or download url, default is: %s' % _template)
 	options, args = parser.parse_args()
 
-    # TODO:
+	# TODO:
 	if len(args) != 2:  
 		parser.error('Incorrect number of arguments')
 
@@ -457,11 +493,25 @@ def main(args=None):
 		else:
 			parser.error('Firefox special profile [%s] does not exist.' % options.profile)
 
+	_profile1 = None
+	if options.profile1:
+		if os.path.exists(options.profile1):
+			_profile1 = options.profile1
+		else:
+			parser.error('Firefox special profile [%s] for site1 does not exist.' % options.profile1)
+
+	_profile2 = None
+	if options.profile2:
+		if os.path.exists(options.profile2):
+			_profile2 = options.profile2
+		else:
+			parser.error('Firefox special profile [%s] for site2 does not exist.' % options.profile2)
+
 	if options.template:
 		_template = options.template
 
 	# START
-	sites = siteCompare(site1 = _site1, site2 = _site2, output = _output, template = _template, logLevel = _level, profile = _profile)
+	sites = siteCompare(site1 = _site1, site2 = _site2, output = _output, template = _template, logLevel = _level, profile = _profile, profile1 = _profile1, profile2 = _profile2)
 	sites.run()
 
 if __name__ == '__main__':
