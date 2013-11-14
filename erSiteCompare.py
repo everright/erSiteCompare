@@ -397,9 +397,7 @@ class siteCompare(object):
 
 	def download(self, url, filename):
 		print 'Download file %s' % url
-		f = open(filename, 'w')
-		f.write(urllib.urlopen(url).read())
-		f.close()
+		urllib.urlretrieve(url, filename)
 
 	def reportTemplate(self):
 		templateFile = None
@@ -419,8 +417,8 @@ class siteCompare(object):
 			shutil.rmtree(tempPath)
 
 	def run(self):
-		self.capture()
-		self.compare()
+		#self.capture()
+		#self.compare()
 		self.reportTemplate()
 
 def main(args=None):
