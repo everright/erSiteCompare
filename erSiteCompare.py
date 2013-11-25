@@ -145,16 +145,6 @@ class siteCompare(object):
 			logging.error('Sites compare should be use different url, site1 [%s], site2 [%s].' % (site1, site2))
 			sys.exit('Sites compare should be use different url.')
 
-		conn = urllib.urlopen(site1)
-		if (200 != conn.getcode()):
-			logging.error('System connect to site1 [%s] failed.' % site1)
-			sys.exit('System connect to site1 [%s] failed, please check the network.' % site1)
-
-		conn = urllib.urlopen(site2)
-		if (200 != conn.getcode()):
-			logging.error('System connect to site2 [%s] failed.' % site2)
-			sys.exit('System connect to site2 [%s] failed, please check the network.' % site2)
-
 		self._site1 = site1
 		self._site2 = site2
 
