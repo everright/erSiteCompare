@@ -9,7 +9,7 @@ Author: everright.chen
 Email: everright.chen@gmail.com
 Website: http://everright.cn
 Github: https://github.com/everright
-Version: 1.0 Beta
+Version: 1.0 Beta 2
 """
 
 import os, sys, time, urllib, logging, errno, json, zipfile, shutil
@@ -22,25 +22,28 @@ import optparse
 
 PY3k = sys.version_info >= (3,)
 if PY3k:
-    from urllib.parse import urlencode
-    from urllib.parse import urljoin, urlparse, urlunparse, parse_qsl
+	from urllib.parse import urlencode
+	from urllib.parse import urljoin, urlparse, urlunparse, parse_qsl
 else:
-    from urllib import urlencode
-    from urlparse import urljoin, urlparse, urlunparse, parse_qsl
+	from urllib import urlencode
+	from urlparse import urljoin, urlparse, urlunparse, parse_qsl
 
 class Url(object):
-    def __init__(self, url):
-        self.scheme, self.netloc, self.path, self.params, self.query_string, self.fragment = urlparse(url)
-        self.query = dict(parse_qsl(self.query_string))
+	def __init__(self, url):
+		self.scheme, self.netloc, self.path, self.params, self.query_string, self.fragment = urlparse(url)
+		self.query = dict(parse_qsl(self.query_string))
 
-    def build(self):
-        return u"%s" % urlunparse((self.scheme, self.netloc, self.path, self.params, urlencode(self.query), self.fragment))
+	def build(self):
+		return u"%s" % urlunparse((self.scheme, self.netloc, self.path, self.params, urlencode(self.query), self.fragment))
 
-    def __str__(self):
-        return self.build()
+	def getPath(self):
+		return u"%s" % urlunparse(('', '', self.path, self.params, urlencode(self.query), self.fragment))
 
-    def __unicode__(self):
-        return self.build()
+	def __str__(self):
+		return self.build()
+
+	def __unicode__(self):
+		return self.build()
 
 class imageCompare(object):
 	_pointTable = ([0] + ([255] * 255))
@@ -104,6 +107,7 @@ class imageCompare(object):
 class siteCompare(object):
 	_scrapeQueue = []
 	_siteLinks = {}
+	_ignoreLinks = []
 	_windowOpenLinks = []
 	_siteLinkCaptures = {}
 	_site1Links = {}
@@ -125,7 +129,7 @@ class siteCompare(object):
 	_baseDomain = None
 	driver = None
 
-	def __init__(self, site1 = None, site2 = None, output = None, template = None, logLevel = logging.DEBUG, profile = None, profile1 = None, profile2 = None):
+	def __init__(self, site1 = None, site2 = None, output = None, template = None, logLevel = logging.DEBUG, profile = None, profile1 = None, profile2 = None, ignoreLinks = None):
 		if output:
 			self._outputPath = output
 			self.mkdir(output)
@@ -155,6 +159,9 @@ class siteCompare(object):
 			self._site1Profile = profile1
 		if profile2 is not None:
 			self._site2Profile = profile2
+
+		if ignoreLinks is not None:
+			self._ignoreLinks = ignoreLinks
 
 		logging.info('Sites compare start.')
 
@@ -281,11 +288,15 @@ class siteCompare(object):
 		url = Url(link)
 		if (self._baseDomain == url.netloc):
 			url.fragment = ''
-			link = url.build()
-			if not self._siteLinks.has_key(link):
-				self._siteLinks[link] = ''
-				self._scrapeQueue.append(link)
-				logging.info('Append new link [%s].' % link)
+			path = url.getPath()
+			if path in self._ignoreLinks:
+				logging.info('Ignore link [%s].' % link)
+			else:
+				link = url.build()
+				if not self._siteLinks.has_key(link):
+					self._siteLinks[link] = ''
+					self._scrapeQueue.append(link)
+					logging.info('Append new link [%s].' % link)
 
 	def prepareLinks(self):
 		elements = self.driver.find_elements_by_xpath("//a|//area|//iframe|//frame")
@@ -479,6 +490,10 @@ def main(args=None):
 		help='start firefox with special profile for site2')
 	parser.add_option('-t', '--template', metavar="URL", action='store', dest='template',
 		help='compare report html template file or download url, default is: %s' % _template)
+	parser.add_option('-i', '--ignore', metavar="STRING", action='store', dest='ignore',
+		help='ignore links, separated by commas')
+	parser.add_option('-f', '--ignore-file', metavar="PATH", action='store', dest='ignore_file',
+		help='ingore links with file')
 	options, args = parser.parse_args()
 
 	# TODO:
@@ -520,8 +535,18 @@ def main(args=None):
 	if options.template:
 		_template = options.template
 
+	_ignoreLinks = []
+	if options.ignore:
+		_ignoreLinks.extend(options.ignore.split(','))
+	if options.ignore_file:
+		if os.path.exists(options.ignore_file):
+			with open(options.ignore_file) as input_data:
+				lines = [line.strip() for line in input_data.readlines()]
+				_ignoreLinks.extend(lines)
+		else:
+			parser.error('Ignore file [%s] does not exist.' % options.ignore_file)
 	# START
-	sites = siteCompare(site1 = _site1, site2 = _site2, output = _output, template = _template, logLevel = _level, profile = _profile, profile1 = _profile1, profile2 = _profile2)
+	sites = siteCompare(site1 = _site1, site2 = _site2, output = _output, template = _template, logLevel = _level, profile = _profile, profile1 = _profile1, profile2 = _profile2, ignoreLinks = _ignoreLinks)
 	sites.run()
 
 if __name__ == '__main__':
